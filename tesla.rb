@@ -53,9 +53,11 @@ class Tesla < Thor
            "with a SOC of #{charge_state['battery_level']}% " +
            "and an estimate range of #{charge_state['est_battery_range']} miles " +
                    "timestamp #{charge_state['timestamp']}"
+
+      display_name = vehicle['display_name'].gsub("'", "_")
       data = {
         values: { value: charge_state['est_battery_range'].to_f },
-        tags:   { display_name: vehicle['display_name'] },
+        tags:   { display_name: display_name },
         timestamp: charge_state['timestamp']
       }
       influxdb.write_point('est_battery_range', data)  # millisecond precision
