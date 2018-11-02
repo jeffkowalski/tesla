@@ -1,3 +1,5 @@
+#!/usr/bin/env ruby
+
 require 'thor'
 require 'fileutils'
 require 'logger'
