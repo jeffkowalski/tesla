@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 
 require 'thor'
-require 'fileutils'
 require 'logger'
 require 'bundler/setup'
 require 'tesla_api'
@@ -51,18 +50,22 @@ class Tesla < Thor
       tesla_api.login!(account[:password])
       vehicle = tesla_api.vehicles.first
       charge_state = vehicle.charge_state
-      $logger.info "#{vehicle['display_name']} is #{charge_state['charging_state']} " +
-           "with a SOC of #{charge_state['battery_level']}% " +
-           "and an estimate range of #{charge_state['est_battery_range']} miles " +
-                   "timestamp #{charge_state['timestamp']}"
+      if charge_state.nil?
+        $logger.warn "#{vehicle['display_name']} cannot be queried"
+      else
+        $logger.info "#{vehicle['display_name']} is #{charge_state['charging_state']} " +
+                     "with a SOC of #{charge_state['battery_level']}% " +
+                     "and an estimate range of #{charge_state['est_battery_range']} miles " +
+                     "timestamp #{charge_state['timestamp']}"
 
-      display_name = vehicle['display_name'].gsub("'", "_")
-      data = {
-        values: { value: charge_state['est_battery_range'].to_f },
-        tags:   { display_name: display_name },
-        timestamp: charge_state['timestamp']
-      }
-      influxdb.write_point('est_battery_range', data)  # millisecond precision
+        display_name = vehicle['display_name'].gsub("'", "_")
+        data = {
+          values: { value: charge_state['est_battery_range'].to_f },
+          tags:   { display_name: display_name },
+          timestamp: charge_state['timestamp']
+        }
+        influxdb.write_point('est_battery_range', data)  # millisecond precision
+      end
     }
   end
 end
