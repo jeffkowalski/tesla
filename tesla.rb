@@ -34,7 +34,7 @@ class Tesla < Thor
     end
   }
 
-  class_option :log,     :type => :boolean, :default => true, :desc => "log output to ~/.rainforest.log"
+  class_option :log,     :type => :boolean, :default => true, :desc => "log output to #{LOGFILE}"
   class_option :verbose, :type => :boolean, :aliases => "-v", :desc => "increase verbosity"
 
   desc "record-status", "record the current usage data to database"
