@@ -7,18 +7,17 @@ require 'tesla_api'
 require 'yaml'
 require 'influxdb'
 
-
 LOGFILE = File.join(Dir.home, '.log', 'tesla.log')
 CREDENTIALS_PATH = File.join(Dir.home, '.credentials', 'tesla.yaml')
 
 class Tesla < Thor
-  no_commands {
+  no_commands do
     def redirect_output
       unless LOGFILE == 'STDOUT'
         logfile = File.expand_path(LOGFILE)
-        FileUtils.mkdir_p(File.dirname(logfile), :mode => 0755)
+        FileUtils.mkdir_p(File.dirname(logfile), mode: 0o755)
         FileUtils.touch logfile
-        File.chmod 0644, logfile
+        File.chmod 0o644, logfile
         $stdout.reopen logfile, 'a'
       end
       $stderr.reopen $stdout
@@ -28,16 +27,16 @@ class Tesla < Thor
     def setup_logger
       redirect_output if options[:log]
 
-      $logger = Logger.new STDOUT
-      $logger.level = options[:verbose] ? Logger::DEBUG : Logger::INFO
-      $logger.info 'starting'
+      @logger = Logger.new STDOUT
+      @logger.level = options[:verbose] ? Logger::DEBUG : Logger::INFO
+      @logger.info 'starting'
     end
-  }
+  end
 
-  class_option :log,     :type => :boolean, :default => true, :desc => "log output to #{LOGFILE}"
-  class_option :verbose, :type => :boolean, :aliases => "-v", :desc => "increase verbosity"
+  class_option :log,     type: :boolean, default: true, desc: "log output to #{LOGFILE}"
+  class_option :verbose, type: :boolean, aliases: '-v', desc: 'increase verbosity'
 
-  desc "record-status", "record the current usage data to database"
+  desc 'record-status', 'record the current usage data to database'
   def record_status
     setup_logger
 
@@ -45,28 +44,28 @@ class Tesla < Thor
 
     influxdb = InfluxDB::Client.new('tesla', time_precision: 'ms')
 
-    credentials[:accounts].each { |account|
+    credentials[:accounts].each do |account|
       tesla_api = TeslaApi::Client.new(account[:username], credentials[:client_id], credentials[:client_secret])
       tesla_api.login!(account[:password])
       vehicle = tesla_api.vehicles.first
       charge_state = vehicle.charge_state
       if charge_state.nil?
-        $logger.warn "#{vehicle['display_name']} cannot be queried"
+        @logger.warn "#{vehicle['display_name']} cannot be queried"
       else
-        $logger.info "#{vehicle['display_name']} is #{charge_state['charging_state']} " +
-                     "with a SOC of #{charge_state['battery_level']}% " +
-                     "and an estimate range of #{charge_state['est_battery_range']} miles " +
+        @logger.info "#{vehicle['display_name']} is #{charge_state['charging_state']} " \
+                     "with a SOC of #{charge_state['battery_level']}% " \
+                     "and an estimate range of #{charge_state['est_battery_range']} miles " \
                      "timestamp #{charge_state['timestamp']}"
 
-        display_name = vehicle['display_name'].gsub("'", "_")
+        display_name = vehicle['display_name'].tr("'", '_')
         data = {
           values: { value: charge_state['est_battery_range'].to_f },
-          tags:   { display_name: display_name },
+          tags: { display_name: display_name },
           timestamp: charge_state['timestamp']
         }
-        influxdb.write_point('est_battery_range', data)  # millisecond precision
+        influxdb.write_point('est_battery_range', data) # millisecond precision
       end
-    }
+    end
   end
 end
 
