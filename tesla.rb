@@ -45,7 +45,9 @@ class Tesla < Thor
     influxdb = InfluxDB::Client.new('tesla', time_precision: 'ms')
 
     credentials[:accounts].each do |account|
-      tesla_api = TeslaApi::Client.new(account[:username], credentials[:client_id], credentials[:client_secret])
+      tesla_api = TeslaApi::Client.new account[:username],
+                                       credentials[:client_id],
+                                       credentials[:client_secret]
       tesla_api.login!(account[:password])
       vehicle = tesla_api.vehicles.first
       charge_state = vehicle.charge_state
