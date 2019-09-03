@@ -35,6 +35,7 @@ class Tesla < Thor
 
   class_option :log,     type: :boolean, default: true, desc: "log output to #{LOGFILE}"
   class_option :verbose, type: :boolean, aliases: '-v', desc: 'increase verbosity'
+  class_option :dry_run, type: :boolean, aliases: '-n', desc: "don't log to database"
 
   desc 'record-status', 'record the current usage data to database'
   def record_status
@@ -42,7 +43,7 @@ class Tesla < Thor
 
     credentials = YAML.load_file CREDENTIALS_PATH
 
-    influxdb = InfluxDB::Client.new('tesla', time_precision: 'ms')
+    influxdb = options[:dry_run] ? nil : InfluxDB::Client.new('tesla', time_precision: 'ms')
 
     credentials[:accounts].each do |account|
       tesla_api = TeslaApi::Client.new account[:username],
@@ -65,7 +66,7 @@ class Tesla < Thor
           tags: { display_name: display_name },
           timestamp: charge_state['timestamp']
         }
-        influxdb.write_point('est_battery_range', data) # millisecond precision
+        influxdb.write_point('est_battery_range', data) unless options[:dry_run] # millisecond precision
       end
     end
   end
