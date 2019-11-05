@@ -51,22 +51,27 @@ class Tesla < Thor
                                        credentials[:client_secret]
       tesla_api.login!(account[:password])
       vehicle = tesla_api.vehicles.first
-      charge_state = vehicle.charge_state
-      if charge_state.nil?
-        @logger.warn "#{vehicle['display_name']} cannot be queried"
+      @logger.debug vehicle
+      if vehicle.state == 'asleep'
+        @logger.info "#{vehicle['display_name']} is asleep"
       else
-        @logger.info "#{vehicle['display_name']} is #{charge_state['charging_state']} " \
-                     "with a SOC of #{charge_state['battery_level']}% " \
-                     "and an estimate range of #{charge_state['est_battery_range']} miles " \
-                     "timestamp #{charge_state['timestamp']}"
+        charge_state = vehicle.charge_state
+        if charge_state.nil?
+          @logger.warn "#{vehicle['display_name']} cannot be queried"
+        else
+          @logger.info "#{vehicle['display_name']} is #{vehicle['state']}, #{charge_state['charging_state']} " \
+                       "with a SOC of #{charge_state['battery_level']}% " \
+                       "and an estimated range of #{charge_state['est_battery_range']} miles " \
+                       "timestamp #{charge_state['timestamp']}"
 
-        display_name = vehicle['display_name'].tr("'", '_')
-        data = {
-          values: { value: charge_state['est_battery_range'].to_f },
-          tags: { display_name: display_name },
-          timestamp: charge_state['timestamp']
-        }
-        influxdb.write_point('est_battery_range', data) unless options[:dry_run] # millisecond precision
+          display_name = vehicle['display_name'].tr("'", '_')
+          data = {
+            values: { value: charge_state['est_battery_range'].to_f },
+            tags: { display_name: display_name },
+            timestamp: charge_state['timestamp']
+          }
+          influxdb.write_point('est_battery_range', data) unless options[:dry_run] # millisecond precision
+        end
       end
     end
   end
