@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
 require 'thor'
 require 'logger'
@@ -41,41 +42,45 @@ class Tesla < Thor
   def record_status
     setup_logger
 
-    credentials = YAML.load_file CREDENTIALS_PATH
+    begin
+      credentials = YAML.load_file CREDENTIALS_PATH
 
-    influxdb = options[:dry_run] ? nil : InfluxDB::Client.new('tesla', time_precision: 'ms')
+      influxdb = options[:dry_run] ? nil : InfluxDB::Client.new('tesla', time_precision: 'ms')
 
-    credentials[:accounts].each do |account|
-      tesla_api = TeslaApi::Client.new(email: account[:username],
-                                       access_token: nil,
-                                       access_token_expires_at: nil,
-                                       refresh_token: nil,
-                                       client_id: credentials[:client_id],
-                                       client_secret: credentials[:client_secret])
-      tesla_api.login!(account[:password])
-      vehicle = tesla_api.vehicles.first
-      @logger.debug vehicle
-      if vehicle.state == 'asleep'
-        @logger.info "#{vehicle['display_name']} is asleep"
-      else
-        charge_state = vehicle.charge_state
-        if charge_state.nil?
-          @logger.warn "#{vehicle['display_name']} cannot be queried"
+      credentials[:accounts].each do |account|
+        tesla_api = TeslaApi::Client.new(email: account[:username],
+                                         access_token: nil,
+                                         access_token_expires_at: nil,
+                                         refresh_token: nil,
+                                         client_id: credentials[:client_id],
+                                         client_secret: credentials[:client_secret])
+        tesla_api.login!(account[:password])
+        vehicle = tesla_api.vehicles.first
+        @logger.debug vehicle
+        if vehicle.state == 'asleep'
+          @logger.info "#{vehicle['display_name']} is asleep"
         else
-          @logger.info "#{vehicle['display_name']} is #{vehicle['state']}, #{charge_state['charging_state']} " \
-                       "with a SOC of #{charge_state['battery_level']}% " \
-                       "and an estimated range of #{charge_state['est_battery_range']} miles " \
-                       "timestamp #{charge_state['timestamp']}"
+          charge_state = vehicle.charge_state
+          if charge_state.nil?
+            @logger.warn "#{vehicle['display_name']} cannot be queried"
+          else
+            @logger.info "#{vehicle['display_name']} is #{vehicle['state']}, #{charge_state['charging_state']} " \
+                         "with a SOC of #{charge_state['battery_level']}% " \
+                         "and an estimated range of #{charge_state['est_battery_range']} miles " \
+                         "timestamp #{charge_state['timestamp']}"
 
-          display_name = vehicle['display_name'].tr("'", '_')
-          data = {
-            values: { value: charge_state['est_battery_range'].to_f },
-            tags: { display_name: display_name },
-            timestamp: charge_state['timestamp']
-          }
-          influxdb.write_point('est_battery_range', data) unless options[:dry_run] # millisecond precision
+            display_name = vehicle['display_name'].tr("'", '_')
+            data = {
+              values: { value: charge_state['est_battery_range'].to_f },
+              tags: { display_name: display_name },
+              timestamp: charge_state['timestamp']
+            }
+            influxdb.write_point('est_battery_range', data) unless options[:dry_run] # millisecond precision
+          end
         end
       end
+    rescue StandardError => e
+      @logger.error e
     end
   end
 end
