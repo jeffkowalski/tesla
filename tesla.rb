@@ -57,8 +57,8 @@ class Tesla < Thor
         tesla_api.login!(account[:password])
         vehicle = tesla_api.vehicles.first
         @logger.debug vehicle
-        if vehicle.state == 'asleep'
-          @logger.info "#{vehicle['display_name']} is asleep"
+        if vehicle.state != 'online'
+          @logger.info "#{vehicle['display_name']} is #{vehicle.state}"
         else
           charge_state = vehicle.charge_state
           if charge_state.nil?
