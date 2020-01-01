@@ -49,9 +49,6 @@ class Tesla < Thor
 
       credentials[:accounts].each do |account|
         tesla_api = TeslaApi::Client.new(email: account[:username],
-                                         access_token: nil,
-                                         access_token_expires_at: nil,
-                                         refresh_token: nil,
                                          client_id: credentials[:client_id],
                                          client_secret: credentials[:client_secret])
         tesla_api.login!(account[:password])
