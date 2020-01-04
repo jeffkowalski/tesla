@@ -1,9 +1,11 @@
+# frozen_string_literal: true
+
 source 'https://rubygems.org'
 
 gem 'influxdb'
 gem 'rest-client'
+gem 'tesla_api', git: 'https://github.com/timdorr/tesla-api.git'
 gem 'thor'
-gem 'tesla_api', :git => 'https://github.com/timdorr/tesla-api.git'
 
 # for robe:
 gem 'method_source', '>=0.8.2'
