@@ -53,11 +53,11 @@ class Tesla < Thor
                                          client_secret: credentials[:client_secret])
         begin
           tesla_api.login!(account[:password])
+          vehicle = tesla_api.vehicles.first
+          @logger.debug vehicle
         rescue Faraday::ClientError => e
           @logger.info "vehicle for account[:username] is unavailable #{e}"
         else
-          vehicle = tesla_api.vehicles.first
-          @logger.debug vehicle
           if vehicle.state != 'online'
             @logger.info "#{vehicle['display_name']} is #{vehicle.state}"
           else
