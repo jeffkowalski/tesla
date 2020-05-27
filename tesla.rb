@@ -78,6 +78,18 @@ class Tesla < Thor
                   timestamp: charge_state['timestamp']
                 }
                 influxdb.write_point('est_battery_range', data) unless options[:dry_run] # millisecond precision
+                data = {
+                  values: { value: vehicle['state'] },
+                  tags: { display_name: display_name },
+                  timestamp: charge_state['timestamp']
+                }
+                influxdb.write_point('state', data) unless options[:dry_run] # millisecond precision
+                data = {
+                  values: { value: charge_state['charging_state'] },
+                  tags: { display_name: display_name },
+                  timestamp: charge_state['timestamp']
+                }
+                influxdb.write_point('charging_state', data) unless options[:dry_run] # millisecond precision
               end
             rescue Faraday::ClientError => e
               @logger.info "#{vehicle['display_name']} is unavailable, #{vehicle.state} #{e}"
