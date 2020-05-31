@@ -71,25 +71,12 @@ class Tesla < Thor
                              "and an estimated range of #{charge_state['est_battery_range']} miles " \
                              "timestamp #{charge_state['timestamp']}"
 
-                display_name = vehicle['display_name'].tr("'", '_')
-                data = {
-                  values: { value: charge_state['est_battery_range'].to_f },
-                  tags: { display_name: display_name },
-                  timestamp: charge_state['timestamp']
-                }
-                influxdb.write_point('est_battery_range', data) unless options[:dry_run] # millisecond precision
-                data = {
-                  values: { value: vehicle['state'] },
-                  tags: { display_name: display_name },
-                  timestamp: charge_state['timestamp']
-                }
-                influxdb.write_point('state', data) unless options[:dry_run] # millisecond precision
-                data = {
-                  values: { value: charge_state['charging_state'] },
-                  tags: { display_name: display_name },
-                  timestamp: charge_state['timestamp']
-                }
-                influxdb.write_point('charging_state', data) unless options[:dry_run] # millisecond precision
+                tags = { display_name: vehicle['display_name'].tr("'", '_') }
+                timestamp = charge_state['timestamp']
+                data = [{ series: 'est_battery_range', values: { value: charge_state['est_battery_range'].to_f  }, tags: tags, timestamp: timestamp },
+                        { series: 'state',             values: { value: vehicle['state'] },                        tags: tags, timestamp: timestamp }]
+                data.push({ series: 'charging_state',  values: { value: charge_state['charging_state'] },          tags: tags, timestamp: timestamp }) if charge_state['charging_state']
+                influxdb.write_points data unless options[:dry_run]
               end
             rescue Faraday::ClientError => e
               @logger.info "#{vehicle['display_name']} is unavailable, #{vehicle.state} #{e}"
