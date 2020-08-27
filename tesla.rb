@@ -75,11 +75,11 @@ class Tesla < Thor
                   data.push({ series: 'charging_state',  values: { value: charge_state['charging_state'] },         tags: tags, timestamp: timestamp }) if charge_state['charging_state']
                   influxdb.write_points data unless options[:dry_run]
                 end
-              rescue Faraday::ClientError => e
+              rescue Faraday::ClientError, Faraday::ConnectionFailed => e
                 @logger.info "#{vehicle['display_name']} is unavailable, #{vehicle.state} #{e}"
               end
             end
-          rescue Faraday::ClientError => e
+          rescue Faraday::ClientError, Faraday::ConnectionFailed => e
             @logger.info "vehicles for account[:username] are unavailable #{e}"
           end
         end
