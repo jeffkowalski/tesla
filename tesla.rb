@@ -11,6 +11,21 @@ require 'influxdb'
 LOGFILE = File.join(Dir.home, '.log', 'tesla.log')
 CREDENTIALS_PATH = File.join(Dir.home, '.credentials', 'tesla.yaml')
 
+module Kernel
+  def with_rescue(exceptions, logger, retries: 5)
+    try = 0
+    begin
+      yield try
+    rescue *exceptions => e
+      try += 1
+      raise if try > retries
+
+      logger.info "caught error #{e.class}, retrying (#{try}/#{retries})..."
+      retry
+    end
+  end
+end
+
 class Tesla < Thor
   no_commands do
     def redirect_output
@@ -42,50 +57,51 @@ class Tesla < Thor
   def record_status
     setup_logger
 
-    begin
-      credentials = YAML.load_file CREDENTIALS_PATH
+    credentials = YAML.load_file CREDENTIALS_PATH
 
-      influxdb = options[:dry_run] ? nil : InfluxDB::Client.new('tesla', time_precision: 'ms')
+    influxdb = options[:dry_run] ? nil : InfluxDB::Client.new('tesla', time_precision: 'ms')
 
-      credentials[:accounts].each do |account|
-        tesla_api = TeslaApi::Client.new(email: account[:username],
-                                         client_id: credentials[:client_id],
-                                         client_secret: credentials[:client_secret])
-        begin
-          tesla_api.login!(account[:password])
-          tesla_api.vehicles.each do |vehicle|
+    credentials[:accounts].each do |account|
+      tesla_api = TeslaApi::Client.new(email: account[:username],
+                                       client_id: credentials[:client_id],
+                                       client_secret: credentials[:client_secret])
+      with_rescue([Faraday::ClientError, Faraday::ConnectionFailed], @logger) do |_try|
+        tesla_api.login!(account[:password])
+        tesla_api.vehicles.each do |vehicle|
+          with_rescue([Faraday::ClientError, Faraday::ConnectionFailed], @logger) do |_try|
             @logger.debug vehicle
-            if vehicle.state != 'online'
-              @logger.info "#{vehicle['display_name']} is #{vehicle.state}"
-            else
-              begin
-                charge_state = vehicle.charge_state
-                if charge_state.nil?
-                  @logger.warn "#{vehicle['display_name']} cannot be queried"
-                else
-                  @logger.info "#{vehicle['display_name']} is #{vehicle['state']}, #{charge_state['charging_state']} " \
-                               "with a SOC of #{charge_state['battery_level']}% " \
-                               "and an estimated range of #{charge_state['est_battery_range']} miles " \
-                               "timestamp #{charge_state['timestamp']}"
 
-                  tags = { display_name: vehicle['display_name'].tr("'", '_') }
-                  timestamp = charge_state['timestamp']
-                  data = [{ series: 'est_battery_range', values: { value: charge_state['est_battery_range'].to_f }, tags: tags, timestamp: timestamp },
-                          { series: 'state',             values: { value: vehicle['state'] },                       tags: tags, timestamp: timestamp }]
-                  data.push({ series: 'charging_state',  values: { value: charge_state['charging_state'] },         tags: tags, timestamp: timestamp }) if charge_state['charging_state']
-                  influxdb.write_points data unless options[:dry_run]
-                end
-              rescue Faraday::ClientError, Faraday::ConnectionFailed => e
-                @logger.info "#{vehicle['display_name']} is unavailable, #{vehicle.state} #{e}"
-              end
+            if vehicle.state != 'online'
+              @logger.info "#{vehicle['display_name']} is #{vehicle.state}, not online"
+              next
             end
-          rescue Faraday::ClientError, Faraday::ConnectionFailed => e
-            @logger.info "vehicles for account[:username] are unavailable #{e}"
+
+            charge_state = vehicle.charge_state
+            if charge_state.nil?
+              @logger.warn "#{vehicle['display_name']} cannot be queried"
+              next
+            end
+
+            @logger.info "#{vehicle['display_name']} is #{vehicle['state']}, #{charge_state['charging_state']} " \
+                         "with a SOC of #{charge_state['battery_level']}% " \
+                         "and an estimated range of #{charge_state['est_battery_range']} miles " \
+                         "timestamp #{charge_state['timestamp']}"
+
+            tags = { display_name: vehicle['display_name'].tr("'", '_') }
+            timestamp = charge_state['timestamp']
+            data = [{ series: 'est_battery_range', values: { value: charge_state['est_battery_range'].to_f }, tags: tags, timestamp: timestamp },
+                    { series: 'state',             values: { value: vehicle['state'] },                       tags: tags, timestamp: timestamp }]
+            data.push({ series: 'charging_state',  values: { value: charge_state['charging_state'] },         tags: tags, timestamp: timestamp }) if charge_state['charging_state']
+            influxdb.write_points data unless options[:dry_run]
           end
+        rescue Faraday::ClientError, Faraday::ConnectionFailed => e
+          @logger.info "#{vehicle['display_name']} is unavailable, #{vehicle.state} #{e}"
         end
-      rescue StandardError => e
-        @logger.error e
       end
+    rescue Faraday::ClientError, Faraday::ConnectionFailed => e
+      @logger.info "vehicles for account[:username] are unavailable #{e}"
+    rescue StandardError => e
+      @logger.error e
     end
   end
 end
