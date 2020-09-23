@@ -65,10 +65,10 @@ class Tesla < Thor
       tesla_api = TeslaApi::Client.new(email: account[:username],
                                        client_id: credentials[:client_id],
                                        client_secret: credentials[:client_secret])
-      with_rescue([Faraday::ClientError, Faraday::ConnectionFailed], @logger) do |_try|
+      with_rescue([Faraday::ClientError, Faraday::ConnectionFailed, Faraday::ServerError], @logger) do |_try|
         tesla_api.login!(account[:password])
         tesla_api.vehicles.each do |vehicle|
-          with_rescue([Faraday::ClientError, Faraday::ConnectionFailed], @logger) do |_try|
+          with_rescue([Faraday::ClientError, Faraday::ConnectionFailed, Faraday::ServerError], @logger) do |_try|
             @logger.debug vehicle
 
             if vehicle.state != 'online'
@@ -94,11 +94,11 @@ class Tesla < Thor
             data.push({ series: 'charging_state',  values: { value: charge_state['charging_state'] },         tags: tags, timestamp: timestamp }) if charge_state['charging_state']
             influxdb.write_points data unless options[:dry_run]
           end
-        rescue Faraday::ClientError, Faraday::ConnectionFailed => e
+        rescue Faraday::ClientError, Faraday::ConnectionFailed, Faraday::ServerError => e
           @logger.info "#{vehicle['display_name']} is unavailable, #{vehicle.state} #{e}"
         end
       end
-    rescue Faraday::ClientError, Faraday::ConnectionFailed => e
+    rescue Faraday::ClientError, Faraday::ConnectionFailed, Faraday::ServerError => e
       @logger.info "vehicles for account[:username] are unavailable #{e}"
     rescue StandardError => e
       @logger.error e
