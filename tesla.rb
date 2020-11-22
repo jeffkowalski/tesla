@@ -65,7 +65,7 @@ class Tesla < Thor
       tesla_api = TeslaApi::Client.new(email: account[:username],
                                        client_id: credentials[:client_id],
                                        client_secret: credentials[:client_secret])
-      with_rescue([Faraday::ConnectionFailed, Faraday::ServerError], @logger) do |_try|
+      with_rescue([Faraday::ConnectionFailed, Faraday::ServerError, Faraday::SSLError], @logger) do |_try|
         tesla_api.login!(account[:password])
         tesla_api.vehicles.each do |vehicle|
           with_rescue([Faraday::ClientError, Faraday::ConnectionFailed, Faraday::ServerError], @logger) do |_try|
