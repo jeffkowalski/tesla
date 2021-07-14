@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require 'thor'
+require 'fileutils'
 require 'logger'
 require 'bundler/setup'
 require 'tesla_api'
