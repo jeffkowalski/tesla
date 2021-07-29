@@ -63,11 +63,13 @@ class Tesla < Thor
     influxdb = options[:dry_run] ? nil : InfluxDB::Client.new('tesla', time_precision: 'ms')
 
     credentials[:accounts].each do |account|
-      tesla_api = TeslaApi::Client.new(email: account[:username],
-                                       client_id: credentials[:client_id],
-                                       client_secret: credentials[:client_secret])
       with_rescue([Faraday::ConnectionFailed, Faraday::ServerError, Faraday::SSLError], @logger) do |_try|
-        tesla_api.login!(account[:password])
+        # tesla_api = TeslaApi::Client.new(email: account[:username],
+        #                                  client_id: credentials[:client_id],
+        #                                  client_secret: credentials[:client_secret])
+        # tesla_api.login!(account[:password])
+        tesla_api = TeslaApi::Client.new(access_token: account[:access_token], refresh_token: account[:refresh_token])
+
         tesla_api.vehicles.each do |vehicle|
           with_rescue([Faraday::ClientError, Faraday::ConnectionFailed, Faraday::ServerError], @logger) do |_try|
             @logger.debug vehicle
