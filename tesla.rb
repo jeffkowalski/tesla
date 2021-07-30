@@ -53,6 +53,26 @@ class Tesla < Thor
   class_option :log,     type: :boolean, default: true, desc: "log output to #{LOGFILE}"
   class_option :verbose, type: :boolean, aliases: '-v', desc: 'increase verbosity'
 
+  desc 'refresh-access-token', 'refresh access tokens'
+  def refresh_access_token
+    setup_logger
+
+    credentials = YAML.load_file CREDENTIALS_PATH
+    credentials[:accounts].each do |account|
+      tesla_api = TeslaApi::Client.new(
+        client_id:     credentials[:client_id],
+        client_secret: credentials[:client_secret],
+        email:         account[:username],
+        access_token:  account[:access_token],
+        refresh_token: account[:refresh_token]
+      )
+      tesla_api.refresh_access_token
+      account[:access_token] = tesla_api.access_token
+      account[:refresh_token] = tesla_api.refresh_token
+    end
+    File.open(CREDENTIALS_PATH, 'w') { |file| file.write(credentials.to_yaml) }
+  end
+
   desc 'record-status', 'record the current usage data to database'
   method_option :dry_run, type: :boolean, aliases: '-n', desc: "don't log to database"
   def record_status
@@ -68,7 +88,13 @@ class Tesla < Thor
         #                                  client_id: credentials[:client_id],
         #                                  client_secret: credentials[:client_secret])
         # tesla_api.login!(account[:password])
-        tesla_api = TeslaApi::Client.new(access_token: account[:access_token], refresh_token: account[:refresh_token])
+        tesla_api = TeslaApi::Client.new(
+          client_id:     credentials[:client_id],
+          client_secret: credentials[:client_secret],
+          email:         account[:username],
+          access_token:  account[:access_token],
+          refresh_token: account[:refresh_token]
+        )
 
         tesla_api.vehicles.each do |vehicle|
           with_rescue([Faraday::ClientError, Faraday::ConnectionFailed, Faraday::ServerError], @logger) do |_try|
