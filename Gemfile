@@ -4,7 +4,7 @@ source 'https://rubygems.org'
 
 gem 'influxdb'
 gem 'rest-client'
-gem 'tesla_api', git: 'https://github.com/timdorr/tesla-api.git'
+gem 'tesla_api'
 gem 'thor'
 
 # for robe:
