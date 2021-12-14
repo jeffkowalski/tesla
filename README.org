@@ -11,6 +11,11 @@ https://github.com/timdorr/tesla-api
 bundle install
 #+END_SRC
 * Authorize
+Get tokens
+#+BEGIN_SRC shell
+tesla_auth --owner-api-token --debug
+#+END_SRC
+
 Create ~/.credentials/tesla.yaml with contents similar to
 #+BEGIN_EXAMPLE
 ---
@@ -19,6 +24,8 @@ Create ~/.credentials/tesla.yaml with contents similar to
 :accounts:
 - :username: ~username~
   :password: ~password~
+  :access_token: ~access_token
+  :refresh_token: ~refresh_token~
 #+END_EXAMPLE
 * Scan
 #+BEGIN_EXAMPLE
