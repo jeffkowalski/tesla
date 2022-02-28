@@ -13,7 +13,7 @@ bundle install
 * Authorize
 Get tokens
 #+BEGIN_SRC shell
-tesla_auth --owner-api-token --debug
+./tesla_auth --owner-api-token --debug
 #+END_SRC
 
 Create ~/.credentials/tesla.yaml with contents similar to
