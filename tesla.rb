@@ -31,7 +31,7 @@ class Tesla < RecorderBotBase
       influxdb = options[:dry_run] ? nil : InfluxDB::Client.new('tesla', time_precision: 'ms')
 
       credentials[:accounts].each do |account|
-        with_rescue([Faraday::ConnectionFailed, Faraday::ServerError, Faraday::SSLError], @logger) do |_try|
+        with_rescue([Faraday::ClientError, Faraday::ConnectionFailed, Faraday::ServerError, Faraday::SSLError], @logger) do |_try|
           # tesla_api = TeslaApi::Client.new(email: account[:username],
           #                                  client_id: credentials[:client_id],
           #                                  client_secret: credentials[:client_secret])
@@ -69,6 +69,7 @@ class Tesla < RecorderBotBase
               data = [{ series: 'est_battery_range', values: { value: charge_state['est_battery_range'].to_f }, tags: tags, timestamp: timestamp },
                       { series: 'state',             values: { value: vehicle['state'] },                       tags: tags, timestamp: timestamp }]
               data.push({ series: 'charging_state',  values: { value: charge_state['charging_state'] },         tags: tags, timestamp: timestamp }) if charge_state['charging_state']
+
               influxdb.write_points data unless options[:dry_run]
             end
           rescue Faraday::ClientError, Faraday::ConnectionFailed, Faraday::ServerError => e
