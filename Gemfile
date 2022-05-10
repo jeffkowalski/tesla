@@ -5,4 +5,4 @@ gem 'botbase', git: 'https://github.com/jeffkowalski/botbase'
 source 'https://rubygems.org'
 
 gem 'rest-client'
-gem 'tesla_api'
+gem 'tesla_api', git: 'https://github.com/timdorr/tesla-api'
