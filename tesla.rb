@@ -8,6 +8,8 @@ Bundler.require(:default)
 class Tesla < RecorderBotBase
   desc 'refresh-access-token', 'refresh access tokens'
   def refresh_access_token
+    @logger.info 'refreshing access tokens'
+
     credentials = load_credentials
     credentials[:accounts].each do |account|
       tesla_api = TeslaApi::Client.new(
@@ -30,22 +32,29 @@ class Tesla < RecorderBotBase
 
       influxdb = options[:dry_run] ? nil : InfluxDB::Client.new('tesla', time_precision: 'ms')
 
+      soft_faults = [Faraday::ConnectionFailed, Faraday::ServerError, Faraday::SSLError]
       credentials[:accounts].each do |account|
-        with_rescue([Faraday::ClientError, Faraday::ConnectionFailed, Faraday::ServerError, Faraday::SSLError], @logger) do |_try|
-          # tesla_api = TeslaApi::Client.new(email: account[:username],
-          #                                  client_id: credentials[:client_id],
-          #                                  client_secret: credentials[:client_secret])
-          # tesla_api.login!(account[:password])
-          tesla_api = TeslaApi::Client.new(
-            client_id:     credentials[:client_id],
-            client_secret: credentials[:client_secret],
-            email:         account[:username],
-            access_token:  account[:access_token],
-            refresh_token: account[:refresh_token]
-          )
+        with_rescue(soft_faults, @logger) do |_try|
+          vehicles =
+            begin
+              tesla_api = TeslaApi::Client.new(
+                client_id:     credentials[:client_id],
+                client_secret: credentials[:client_secret],
+                email:         account[:username],
+                access_token:  account[:access_token],
+                refresh_token: account[:refresh_token]
+              )
+              tesla_api.vehicles
+            rescue Faraday::UnauthorizedError => e
+              @logger.warn "not authorized to access #{account[:username]} : #{e}"
+              if e.response[:body].include? 'invalid bearer token'
+                refresh_access_token
+                exit
+              end
+            end
 
-          tesla_api.vehicles.each do |vehicle|
-            with_rescue([Faraday::ClientError, Faraday::ConnectionFailed, Faraday::ServerError], @logger) do |_try|
+          vehicles.each do |vehicle|
+            with_rescue(soft_faults, @logger) do |_try|
               @logger.debug vehicle
 
               if vehicle.state != 'online'
@@ -76,8 +85,6 @@ class Tesla < RecorderBotBase
             @logger.info "#{vehicle['display_name']} is unavailable, #{vehicle.state} #{e}"
           end
         end
-      rescue Faraday::UnauthorizedError => e
-        @logger.error "not authorized to access #{account[:username]} #{e}"
       rescue Faraday::ConnectionFailed, Faraday::ServerError => e
         @logger.info "vehicles for #{account[:username]} are unavailable #{e}"
       end
