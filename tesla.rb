@@ -61,7 +61,7 @@ class Tesla < RecorderBotBase
                 next
               end
 
-              charge_state = vehicle.charge_state
+              charge_state = vehicle.vehicle_data['charge_state']
               if charge_state.nil?
                 @logger.warn "#{vehicle['display_name']} cannot be queried"
                 next
