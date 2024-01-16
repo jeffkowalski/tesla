@@ -45,8 +45,8 @@ class Tesla < RecorderBotBase
               )
               tesla_api.vehicles
             rescue Faraday::UnauthorizedError => e
-              @logger.warn "not authorized to access #{account[:username]} : #{e}"
-              if e.response[:body].include? 'invalid bearer token'
+              @logger.warn "not authorized to access #{account[:username]} : #{e} #{e.response[:body]}"
+              if e.response[:body].include? 'token expired'
                 refresh_access_token
                 exit
               end
