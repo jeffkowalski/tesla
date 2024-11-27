@@ -1,8 +1,5 @@
 tesla - read charge state from tesla vehicles and record to influxdb
 
-* See
-https://tesla-api.timdorr.com/
-https://github.com/timdorr/tesla-api
 * Install
 1. clone the git repo
 2. install required gems
@@ -11,22 +8,21 @@ https://github.com/timdorr/tesla-api
 bundle install
 #+END_SRC
 * Authorize
-Get tokens
-#+BEGIN_SRC shell
-./tesla_auth --owner-api-token --debug
-#+END_SRC
+Follow steps 1-3 in https://developer.tesla.com/docs/fleet-api/getting-started/what-is-fleet-api
 
 Create ~/.credentials/tesla.yaml with contents similar to
 #+BEGIN_EXAMPLE
 ---
 :client_id: ~client_id~
 :client_secret: ~client_secret~
-:accounts:
-- :username: ~username~
-  :password: ~password~
-  :access_token: ~access_token
-  :refresh_token: ~refresh_token~
 #+END_EXAMPLE
+
+Register application and authorize user
+#+BEGIN_SRC shell
+  tesla.rb register --no-log --verbose
+  tesla.rb authorize --no-log --verbose
+#+END_SRC
+
 * Scan
 #+BEGIN_EXAMPLE
 Usage:
