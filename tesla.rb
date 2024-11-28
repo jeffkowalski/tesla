@@ -115,19 +115,20 @@ class Tesla < RecorderBotBase
     uri = URI('https://auth.tesla.com/oauth2/v3/token')
     request = Net::HTTP::Post.new(uri)
     request['Content-Type'] = 'Content-Type: application/x-www-form-urlencoded'
-    request.body = JSON.dump({
+    request.set_form_data(
       'grant_type' => 'refresh_token',
       'client_id' => credentials[:client_id],
-      'refresh_token' => credentials[:refresh_token] })
+      'refresh_token' => credentials[:refresh_token]
+    )
 
-    Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+    response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
       http.request(request)
     end
 
     @logger.debug response.read_body
     json = JSON.parse(response.body)
-    credentials[:access_token] = json['response']['access_token']
-    credentials[:refresh_token] = json['response']['refresh_token']
+    credentials[:access_token] = json['access_token']
+    credentials[:refresh_token] = json['refresh_token']
     store_credentials credentials
   end
 
