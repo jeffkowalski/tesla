@@ -7,6 +7,9 @@ Bundler.require(:default)
 # See https://developer.tesla.com/docs/fleet-api/getting-started/what-is-fleet-api
 
 class Tesla < RecorderBotBase
+  class TimeoutError < StandardError
+  end
+
   desc 'register', 'register application'
   def register
     setup_logger
@@ -159,25 +162,52 @@ class Tesla < RecorderBotBase
       end
 
       vins = json['response'].collect { |vehicle| vehicle['vin'] }
-      pp vins;
+      @logger.info "querying #{vins}"
       vins.each do |vin|
+        # First, query vehicle state, which is inexpensive
+        uri = URI("https://fleet-api.prd.na.vn.cloud.tesla.com/api/1/vehicles/#{vin}")
+        request = Net::HTTP::Get.new(uri)
+        request['Content-Type'] = 'application/json'
+        request['Authorization'] = "Bearer #{credentials[:access_token]}"
+
+        response = with_rescue(soft_faults, @logger) do |_try|
+          Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+            http.request(request)
+          end
+        end
+
+        json = JSON.parse(response.body)
+        if json['error']
+          @logger.warn "vehicle #{vehicle['vin']} unavailable: #{json['error']}"
+          next
+        end
+
+        vehicle = json['response']
+        if vehicle['state'] != 'online'
+          @logger.warn "vehicle #{vehicle['vin']} is not online"
+          next
+        end
+
+        # If the vehicle is online, then proceed with getting its data (expensive)
         uri = URI("https://fleet-api.prd.na.vn.cloud.tesla.com/api/1/vehicles/#{vin}/vehicle_data")
         request = Net::HTTP::Get.new(uri)
         request['Content-Type'] = 'application/json'
         request['Authorization'] = "Bearer #{credentials[:access_token]}"
 
-        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-          http.request(request)
+        response = with_rescue(soft_faults, @logger) do |_try|
+          Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+            http.request(request)
+          end
         end
 
-        @logger.debug response.body
-        vehicle = JSON.parse(response.body)['response']
-
-        @logger.info "#{vehicle['vehicle_state']['vehicle_name']} is #{vehicle['state']}"
-        if vehicle['state'] != 'online'
-          @logger.info "not online"
+        json = JSON.parse(response.body)
+        if json['error']
+          @logger.warn "vehicle #{vehicle['vin']} unavailable: #{json['error']}"
           next
         end
+
+        vehicle = json['response']
+        @logger.info "vehicle #{vehicle['vin']} \"#{vehicle['vehicle_state']['vehicle_name']}\" is #{vehicle['state']}"
 
         charge_state = vehicle['charge_state']
         @logger.info "#{charge_state['charging_state']} " \
