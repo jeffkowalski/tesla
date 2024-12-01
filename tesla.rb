@@ -178,13 +178,13 @@ class Tesla < RecorderBotBase
 
         json = JSON.parse(response.body)
         if json['error']
-          @logger.warn "vehicle #{vehicle['vin']} unavailable: #{json['error']}"
+          @logger.warn "vehicle #{vin} unavailable: #{json['error']}"
           next
         end
 
         vehicle = json['response']
         if vehicle['state'] != 'online'
-          @logger.warn "vehicle #{vehicle['vin']} is not online"
+          @logger.warn "vehicle #{vin} is not online"
           next
         end
 
@@ -202,12 +202,12 @@ class Tesla < RecorderBotBase
 
         json = JSON.parse(response.body)
         if json['error']
-          @logger.warn "vehicle #{vehicle['vin']} unavailable: #{json['error']}"
+          @logger.warn "vehicle #{vin} unavailable: #{json['error']}"
           next
         end
 
         vehicle = json['response']
-        @logger.info "vehicle #{vehicle['vin']} \"#{vehicle['vehicle_state']['vehicle_name']}\" is #{vehicle['state']}"
+        @logger.info "vehicle #{vin} \"#{vehicle['vehicle_state']['vehicle_name']}\" is #{vehicle['state']}"
 
         charge_state = vehicle['charge_state']
         @logger.info "#{charge_state['charging_state']} " \
