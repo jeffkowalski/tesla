@@ -18,7 +18,7 @@ class Tesla < RecorderBotBase
     audience = 'https://fleet-api.prd.na.vn.cloud.tesla.com'
 
     # Generate a partner authentication token
-    uri = URI('https://auth.tesla.com/oauth2/v3/token')
+    uri = URI('https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token')
     request = Net::HTTP::Post.new(uri)
     request['Content-Type'] = 'application/x-www-form-urlencoded'
 
@@ -76,14 +76,14 @@ class Tesla < RecorderBotBase
     # User authorization
     callback = "https://#{credentials[:domain]}/path"
     state    = Time.now
-    auth_url = "https://auth.tesla.com/oauth2/v3/authorize?&client_id=#{credentials[:client_id]}&locale=en-US&prompt=login&redirect_uri=#{URI.encode_www_form_component(callback)}&response_type=code&scope=openid%20vehicle_device_data%20offline_access&state=#{state}"
+    auth_url = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/authorize?&client_id=#{credentials[:client_id]}&locale=en-US&prompt=login&redirect_uri=#{URI.encode_www_form_component(callback)}&response_type=code&scope=openid%20vehicle_device_data%20offline_access&state=#{state}"
     puts 'Log in here:', auth_url
     puts 'Then paste the URL where the browser is redirected:'
     url = $stdin.gets.chomp
     code = url[/code=([^&#]+)/, 1]
 
     # Generate auth code using code exchange
-    uri = URI('https://auth.tesla.com/oauth2/v3/token')
+    uri = URI('https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token')
     request = Net::HTTP::Post.new(uri)
     request['Content-Type'] = 'application/x-www-form-urlencoded'
     request['Authorization'] = "Bearer #{credentials[:partner_token]}"
@@ -115,7 +115,7 @@ class Tesla < RecorderBotBase
     @logger.info 'refreshing access token'
     credentials = load_credentials
 
-    uri = URI('https://auth.tesla.com/oauth2/v3/token')
+    uri = URI('https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token')
     request = Net::HTTP::Post.new(uri)
     request['Content-Type'] = 'Content-Type: application/x-www-form-urlencoded'
     request.set_form_data(
