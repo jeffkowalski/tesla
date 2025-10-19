@@ -26,7 +26,7 @@ class Tesla < RecorderBotBase
       'grant_type' => 'client_credentials',
       'client_id' => credentials[:client_id],
       'client_secret' => credentials[:client_secret],
-      'scope' => 'openid vehicle_device_data vehicle_cmds vehicle_charging_cmds',
+      'scope' => 'openid offline_access vehicle_device_data vehicle_cmds vehicle_charging_cmds energy_device_data energy_cmds',
       'audience' => audience
     )
 
@@ -75,8 +75,20 @@ class Tesla < RecorderBotBase
 
     # User authorization
     callback = "https://#{credentials[:domain]}/path"
-    state    = Time.now
-    auth_url = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/authorize?&client_id=#{credentials[:client_id]}&locale=en-US&prompt=login&redirect_uri=#{URI.encode_www_form_component(callback)}&response_type=code&scope=openid%20vehicle_device_data%20offline_access&state=#{state}"
+    state    = Time.now.to_i
+    scope    = 'openid vehicle_device_data vehicle_cmds vehicle_charging_cmds energy_device_data energy_cmds offline_access'
+    auth_url = URI::HTTPS.build(
+      host: 'fleet-auth.prd.vn.cloud.tesla.com',
+      path: '/oauth2/v3/authorize',
+      query: URI.encode_www_form({ prompt_missing_scopes: 'true',
+                                   client_id: credentials[:client_id],
+                                   locale: 'en-US',
+                                   prompt: 'login',
+                                   redirect_uri: callback,
+                                   response_type: 'code',
+                                   scope: scope,
+                                   state: state })
+    ).to_s
     puts 'Log in here:', auth_url
     puts 'Then paste the URL where the browser is redirected:'
     url = $stdin.gets.chomp
@@ -86,13 +98,12 @@ class Tesla < RecorderBotBase
     uri = URI('https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token')
     request = Net::HTTP::Post.new(uri)
     request['Content-Type'] = 'application/x-www-form-urlencoded'
-    request['Authorization'] = "Bearer #{credentials[:partner_token]}"
 
     request.set_form_data(
       'grant_type' => 'authorization_code',
       'client_id' => credentials[:client_id],
       'client_secret' => credentials[:client_secret],
-      'scope' => 'openid vehicle_device_data vehicle_cmds vehicle_charging_cmds',
+      'scope' => scope,
       'audience' => audience,
       'code' => code,
       'redirect_uri' => callback
@@ -107,7 +118,7 @@ class Tesla < RecorderBotBase
     auth_response = JSON.parse(response.body)
     credentials[:access_token] = auth_response['access_token']
     credentials[:refresh_token] = auth_response['refresh_token']
-    store_credentials
+    store_credentials credentials
   end
 
   desc 'refresh-access-token', 'refresh access token'
