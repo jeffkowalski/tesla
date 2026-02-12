@@ -152,7 +152,7 @@ class Tesla < RecorderBotBase
 
       influxdb = options[:dry_run] ? nil : InfluxDB::Client.new('tesla', time_precision: 'ms')
 
-      soft_faults = [Net::OpenTimeout]
+      soft_faults = [Errno::ENETUNREACH, Net::OpenTimeout]
 
       uri = URI('https://fleet-api.prd.na.vn.cloud.tesla.com/api/1/vehicles')
       request = Net::HTTP::Get.new(uri)
