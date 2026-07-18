@@ -89,9 +89,7 @@ class Tesla < RecorderBotBase
                                    scope: scope,
                                    state: state })
     ).to_s
-    puts 'Log in here:', auth_url
-    puts 'Then paste the URL where the browser is redirected:'
-    url = $stdin.gets.chomp
+    url = prompt_for_auth_redirect auth_url
     code = url[/code=([^&#]+)/, 1]
 
     # Generate auth code using code exchange
