@@ -148,7 +148,7 @@ class Tesla < RecorderBotBase
     def main
       credentials = load_credentials
 
-      influxdb = options[:dry_run] ? nil : InfluxDB::Client.new('tesla', time_precision: 'ms')
+      influxdb = new_influxdb_client('tesla', time_precision: 'ms')
 
       soft_faults = [Errno::ENETUNREACH, Net::OpenTimeout]
 
