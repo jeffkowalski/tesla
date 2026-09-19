@@ -114,6 +114,11 @@ class Tesla < RecorderBotBase
     # Extract access_token and refresh_token from this response
     @logger.debug response.body
     auth_response = JSON.parse(response.body)
+
+    # Never store a response that lacks tokens: it would overwrite working ones with nil
+    auth_error = "authorization failed (HTTP #{response.code}): #{auth_response['error']} #{auth_response['error_description']}"
+    raise auth_error unless auth_response['access_token'] && auth_response['refresh_token']
+
     credentials[:access_token] = auth_response['access_token']
     credentials[:refresh_token] = auth_response['refresh_token']
     store_credentials credentials
@@ -139,6 +144,12 @@ class Tesla < RecorderBotBase
 
     @logger.debug response.read_body
     json = JSON.parse(response.body)
+
+    # Never store a response that lacks tokens: overwriting the refresh token
+    # with nil is unrecoverable without a manual re-authorization
+    refresh_error = "token refresh failed (HTTP #{response.code}): #{json['error']} #{json['error_description']}"
+    raise refresh_error unless json['access_token'] && json['refresh_token']
+
     credentials[:access_token] = json['access_token']
     credentials[:refresh_token] = json['refresh_token']
     store_credentials credentials
@@ -164,6 +175,14 @@ class Tesla < RecorderBotBase
       end
 
       @logger.debug response.read_body
+
+      # A 401 may arrive with an empty body, so check status before parsing
+      if response.code == '401'
+        @logger.warn "Fleet API returned 401 (#{response['www-authenticate']}), refreshing token"
+        refresh_access_token
+        exit
+      end
+
       json = JSON.parse(response.body)
       if json['error']
         refresh_access_token
