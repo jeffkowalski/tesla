@@ -185,6 +185,7 @@ class Tesla < RecorderBotBase
 
       json = JSON.parse(response.body)
       if json['error']
+        @logger.warn "Error accessing Fleet API: #{json['error']}, refreshing token"
         refresh_access_token
         exit
       end
